@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "804098380999",
+    "project_id": "coneccionone-a9442",
+    "storage_bucket": "coneccionone-a9442.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:804098380999:android:08e189c69e6c0d1ea9dae2",
+        "android_client_info": {
+          "package_name": "com.example.coneccionone"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBS8MV3IIOdmujWM6Q73zWicghKJjfYfVs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
