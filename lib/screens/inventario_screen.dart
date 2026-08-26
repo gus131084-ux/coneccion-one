@@ -300,15 +300,17 @@ class _InventarioScreenState extends State<InventarioScreen> {
     );
   }
 
-  InputDecoration _inputDeco(String label) => InputDecoration(
+  InputDecoration _inputDeco(String label) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return InputDecoration(
         labelText: label,
-        labelStyle: const TextStyle(color: Colors.white54),
+        labelStyle: TextStyle(color: isDark ? Colors.white54 : const Color(0xFF64748B)),
         filled: true,
-        fillColor: Colors.white.withOpacity(0.05),
+        fillColor: isDark ? Colors.white.withOpacity(0.05) : const Color(0xFFF8FAFC),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
           borderSide: BorderSide(
-            color: Colors.white.withOpacity(0.2),
+            color: isDark ? Colors.white.withOpacity(0.2) : const Color(0xFFD7E0EC),
           ),
         ),
         focusedBorder: OutlineInputBorder(
@@ -318,4 +320,5 @@ class _InventarioScreenState extends State<InventarioScreen> {
           ),
         ),
       );
+  }
 }

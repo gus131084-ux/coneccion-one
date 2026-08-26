@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:typed_data';
 import 'package:glassmorphism/glassmorphism.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -899,6 +902,12 @@ class _ReparacionesScreenState extends State<ReparacionesScreen> {
 
     String? clienteSeleccionado;
 
+    // local variables for dialog state (persisted while dialog open)
+    bool tienePatron = false;
+    bool tienePin = false;
+    final List<Uint8List> fotos = [];
+    final ImagePicker picker = ImagePicker();
+
     showDialog(
       context: context,
       builder: (context) {
@@ -1102,6 +1111,136 @@ class _ReparacionesScreenState extends State<ReparacionesScreen> {
                         "Observaciones",
                         observacionesCtrl,
                       ),
+                      const SizedBox(height: 15),
+                      // Seguridad del teléfono + fotos
+                      Builder(builder: (dialogCtx) {
+                        Future<void> pickFoto(ImageSource source) async {
+                          try {
+                            final XFile? file = await picker.pickImage(
+                              source: source,
+                              maxWidth: 2000,
+                              maxHeight: 2000,
+                              imageQuality: 85,
+                            );
+                            if (file == null) return;
+                            final bytes = await file.readAsBytes();
+                            setStateDialog(() {
+                              fotos.add(bytes);
+                            });
+                          } catch (e) {
+                            // ignore
+                          }
+                        }
+
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Row(
+                                    children: [
+                                      Checkbox(
+                                        value: tienePatron,
+                                        onChanged: (v) {
+                                          setStateDialog(() {
+                                            tienePatron = v ?? false;
+                                          });
+                                        },
+                                      ),
+                                      const SizedBox(width: 6),
+                                      const Text("Tiene patrón"),
+                                      const SizedBox(width: 20),
+                                      Checkbox(
+                                        value: tienePin,
+                                        onChanged: (v) {
+                                          setStateDialog(() {
+                                            tienePin = v ?? false;
+                                          });
+                                        },
+                                      ),
+                                      const SizedBox(width: 6),
+                                      const Text("Tiene PIN"),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                ElevatedButton.icon(
+                                  onPressed: () => pickFoto(ImageSource.camera),
+                                  icon: const Icon(Icons.camera_alt),
+                                  label: const Text("Tomar foto"),
+                                ),
+                                const SizedBox(width: 10),
+                                ElevatedButton.icon(
+                                  onPressed: () => pickFoto(ImageSource.gallery),
+                                  icon: const Icon(Icons.photo),
+                                  label: const Text("Galería"),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+                            // thumbnails
+                            fotos.isEmpty
+                                ? Text(
+                                    "No hay fotos agregadas",
+                                    style: TextStyle(color: Theme.of(context).hintColor),
+                                  )
+                                : SizedBox(
+                                    height: 90,
+                                    child: ListView.builder(
+                                      scrollDirection: Axis.horizontal,
+                                      itemCount: fotos.length,
+                                      itemBuilder: (ctx, idx) {
+                                        return Stack(
+                                          children: [
+                                            Container(
+                                              margin: const EdgeInsets.only(right: 8),
+                                              width: 90,
+                                              height: 90,
+                                              decoration: BoxDecoration(
+                                                borderRadius: BorderRadius.circular(8),
+                                                image: DecorationImage(
+                                                  image: MemoryImage(fotos[idx]),
+                                                  fit: BoxFit.cover,
+                                                ),
+                                              ),
+                                            ),
+                                            Positioned(
+                                              top: 2,
+                                              right: 6,
+                                              child: GestureDetector(
+                                                onTap: () {
+                                                  setStateDialog(() {
+                                                    fotos.removeAt(idx);
+                                                  });
+                                                },
+                                                child: Container(
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.black54,
+                                                    borderRadius: BorderRadius.circular(12),
+                                                  ),
+                                                  padding: const EdgeInsets.all(4),
+                                                  child: const Icon(
+                                                    Icons.close,
+                                                    color: Colors.white,
+                                                    size: 16,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        );
+                                      },
+                                    ),
+                                  ),
+                            const SizedBox.shrink(),
+                          ],
+                        );
+                      }),
                     ],
                   ),
                 ),
@@ -1143,7 +1282,8 @@ class _ReparacionesScreenState extends State<ReparacionesScreen> {
                             : modeloSeleccionado
                         : modeloSeleccionado;
 
-                    await FirebaseFirestore.instance
+                    // create reparacion document first
+                    final docRef = await FirebaseFirestore.instance
                         .collection('reparaciones')
                         .add({
                       'equipo': "$marcaFinal $modeloFinal",
@@ -1157,7 +1297,35 @@ class _ReparacionesScreenState extends State<ReparacionesScreen> {
                       'presupuesto': double.tryParse(preCtrl.text) ?? 0.0,
                       'entrega': double.tryParse(entCtrl.text) ?? 0.0,
                       'fecha_ingreso': DateTime.now(),
+                      'tiene_patron': tienePatron,
+                      'tiene_pin': tienePin,
+                      'phone_photos': [],
                     });
+
+                    // upload fotos a Firebase Storage si existen
+                    if (fotos.isNotEmpty) {
+                      try {
+                        final List<String> urls = [];
+                        for (var i = 0; i < fotos.length; i++) {
+                          final bytes = fotos[i];
+                          final storageRef = FirebaseStorage.instance
+                              .ref()
+                              .child('reparaciones/${docRef.id}/photos/photo_${i}_${DateTime.now().millisecondsSinceEpoch}.jpg');
+                          final uploadTask = await storageRef.putData(
+                            bytes,
+                            SettableMetadata(contentType: 'image/jpeg'),
+                          );
+                          final url = await uploadTask.ref.getDownloadURL();
+                          urls.add(url);
+                        }
+
+                        if (urls.isNotEmpty) {
+                          await docRef.update({'phone_photos': urls});
+                        }
+                      } catch (e) {
+                        // ignore upload errors for now
+                      }
+                    }
 
                     Navigator.pop(context);
                   },

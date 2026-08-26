@@ -10,6 +10,7 @@ import 'package:glassmorphism/glassmorphism.dart';
 
 import 'firebase_options.dart';
 import 'screens/clientes_screen.dart';
+import 'screens/dashboard_screen.dart';
 import 'screens/reparaciones_screen.dart';
 import 'screens/inventario_screen.dart';
 import 'screens/facturacion_screen.dart';
@@ -265,15 +266,11 @@ class _MainLayoutState extends State<MainLayout> {
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isLargeScreen = screenWidth > 1200;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
       key: _scaffoldKey,
-      drawer: !isLargeScreen ? _buildDrawer() : null,
       endDrawer: _buildClientDetailsDrawer(),
-      appBar: !isLargeScreen ? _buildAppBar() : null,
       body: Container(
         width: double.infinity,
         height: double.infinity,
@@ -286,16 +283,87 @@ class _MainLayoutState extends State<MainLayout> {
                 : [const Color(0xFFF1F5F9), const Color(0xFFE2E8F0)],
           ),
         ),
-        child: isLargeScreen
-            ? Row(
-                children: [
-                  _buildSidebar(),
-                  Expanded(
-                    child: _buildCurrentScreen(),
+        child: Column(
+          children: [
+            _buildTopNavigation(),
+            Expanded(child: _buildCurrentScreen()),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTopNavigation() {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final textColor = theme.colorScheme.onSurface;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(24, 12, 24, 10),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF111111) : const Color(0xFFF8FAFC),
+        border: Border(bottom: BorderSide(color: isDark ? Colors.white10 : Colors.black12)),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              SizedBox(
+                width: 150,
+                height: 54,
+                child: logoBytes != null
+                    ? Image.memory(logoBytes!, fit: BoxFit.contain, alignment: Alignment.centerLeft)
+                    : Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.flash_on, color: Color(0xFF3B82F6), size: 28),
+                          const SizedBox(width: 8),
+                          Text(nombreNegocio, style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+              ),
+              const SizedBox(width: 18),
+              Expanded(
+                child: Text(
+                  '¡Bienvenido, $nombreAdmin!',
+                  style: TextStyle(color: textColor, fontSize: 22, fontWeight: FontWeight.bold),
+                ),
+              ),
+              IconButton(
+                tooltip: isDark ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro',
+                onPressed: () => themeNotifier.value = isDark ? ThemeMode.light : ThemeMode.dark,
+                icon: Icon(isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined, color: textColor),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: List.generate(_menuLabels.length, (index) {
+                final active = _selectedIndex == index;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: TextButton.icon(
+                    onPressed: () async {
+                      setState(() => _selectedIndex = index);
+                      await cargarDashboard();
+                      await cargarConfiguracionGeneral();
+                    },
+                    style: TextButton.styleFrom(
+                      foregroundColor: active ? Colors.white : textColor,
+                      backgroundColor: active ? const Color(0xFF3B82F6) : Colors.transparent,
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    ),
+                    icon: Icon(_menuIcons[index], size: 19),
+                    label: Text(_menuLabels[index]),
                   ),
-                ],
-              )
-            : _buildCurrentScreen(),
+                );
+              }),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -539,7 +607,7 @@ class _MainLayoutState extends State<MainLayout> {
         children: [
           DrawerHeader(
             decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF1E293B) : theme.colorScheme.primary.withOpacity(0.1),
+              color: isDark ? const Color(0xFF1E293B) : theme.colorScheme.primary.withAlpha((0.1 * 255).round()),
             ),
             child: Center(
               child: Column(
@@ -565,7 +633,7 @@ class _MainLayoutState extends State<MainLayout> {
           const Spacer(),
           Padding(
             padding: const EdgeInsets.all(20),
-            child: Text("Conección One v1.0", style: TextStyle(color: theme.hintColor.withOpacity(0.2), fontSize: 12)),
+            child: Text("Conección One v1.0", style: TextStyle(color: theme.hintColor.withAlpha((0.2 * 255).round()), fontSize: 12)),
           )
         ],
       ),
@@ -575,7 +643,7 @@ class _MainLayoutState extends State<MainLayout> {
   PreferredSizeWidget _buildAppBar() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return AppBar(
-      backgroundColor: isDark ? const Color(0xE6000000) : Colors.white.withOpacity(0.9),
+      backgroundColor: isDark ? const Color(0xE6000000) : const Color.fromRGBO(255, 255, 255, 0.9),
       elevation: 0,
       title: Text(
         _menuLabels[_selectedIndex],
@@ -601,7 +669,7 @@ class _MainLayoutState extends State<MainLayout> {
   Widget _buildCurrentScreen() {
     switch (_selectedIndex) {
       case 0:
-        return _buildDashboardContent();
+        return const DashboardScreen();
 
       case 1:
         return const ClientesScreen();

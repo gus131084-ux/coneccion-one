@@ -32,6 +32,9 @@ dependencies:
   intl: ^0.20.2
   pasteboard: ^0.2.0
   image_picker: ^1.1.2
+  audioplayers: ^6.1.0
+  speech_to_text: ^7.0.0
+  js: ^0.6.7
 
 dev_dependencies:
   flutter_test:

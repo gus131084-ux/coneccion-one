@@ -36,5 +36,9 @@ target_link_libraries(${BINARY_NAME} PRIVATE flutter flutter_wrapper_app)
 target_link_libraries(${BINARY_NAME} PRIVATE "dwmapi.lib")
 target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_SOURCE_DIR}")
 
+# Firebase distribuye algunas bibliotecas Debug sin sus archivos PDB. El
+# ejecutable funciona normalmente; se omite solo esa advertencia del enlazador.
+target_link_options(${BINARY_NAME} PRIVATE "$<$<CONFIG:Debug>:/IGNORE:4099>")
+
 # Run the Flutter tool portions of the build. This must not be removed.
 add_dependencies(${BINARY_NAME} flutter_assemble)

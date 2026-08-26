@@ -13,6 +13,10 @@ class ClientesScreen extends StatefulWidget {
 class _ClientesScreenState extends State<ClientesScreen> {
   final TextEditingController _searchController = TextEditingController();
 
+  Color _textColor(BuildContext context) => Theme.of(context).colorScheme.onSurface;
+  Color _mutedTextColor(BuildContext context) => Theme.of(context).brightness == Brightness.dark ? Colors.white54 : const Color(0xFF64748B);
+  bool _isDark(BuildContext context) => Theme.of(context).brightness == Brightness.dark;
+
   String _searchQuery = "";
 
   // Listas para el formulario
@@ -113,6 +117,8 @@ class _ClientesScreenState extends State<ClientesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final textColor = _textColor(context);
+    final mutedTextColor = _mutedTextColor(context);
     final screenWidth = MediaQuery.of(context).size.width;
     final isLargeScreen = screenWidth > 1200;
 
@@ -133,15 +139,15 @@ class _ClientesScreenState extends State<ClientesScreen> {
                           Text(
                             "Gestión de Clientes",
                             style: GoogleFonts.poppins(
-                              color: Colors.white,
+                              color: textColor,
                               fontSize: 26,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-                          const Text(
+                          Text(
                             "Listado completo de clientes",
                             style: TextStyle(
-                              color: Colors.white54,
+                              color: mutedTextColor,
                               fontSize: 14,
                             ),
                           ),
@@ -184,10 +190,10 @@ class _ClientesScreenState extends State<ClientesScreen> {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      const Text(
+                      Text(
                         "Listado completo de clientes",
                         style: TextStyle(
-                          color: Colors.white54,
+                          color: mutedTextColor,
                           fontSize: 14,
                         ),
                       ),
@@ -250,11 +256,11 @@ class _ClientesScreenState extends State<ClientesScreen> {
                   ).toList();
 
                   if (docs.isEmpty) {
-                    return const Center(
+                    return Center(
                       child: Text(
                         "No se encontraron clientes",
                         style: TextStyle(
-                          color: Colors.white54,
+                          color: mutedTextColor,
                         ),
                       ),
                     );
@@ -288,6 +294,7 @@ class _ClientesScreenState extends State<ClientesScreen> {
   }
 
   Widget _buildSearchBar() {
+    final isDark = _isDark(context);
     return GlassmorphicContainer(
       width: double.infinity,
       height: 60,
@@ -297,13 +304,13 @@ class _ClientesScreenState extends State<ClientesScreen> {
       border: 1,
       linearGradient: LinearGradient(
         colors: [
-          Colors.white.withOpacity(0.1),
-          Colors.white.withOpacity(0.05),
+          isDark ? Colors.white.withOpacity(0.1) : const Color(0xFFFFFFFF),
+          isDark ? Colors.white.withOpacity(0.05) : const Color(0xFFF8FAFC),
         ],
       ),
       borderGradient: LinearGradient(
         colors: [
-          Colors.white.withOpacity(0.1),
+          isDark ? Colors.white.withOpacity(0.1) : const Color(0xFFD7E0EC),
           Colors.transparent,
         ],
       ),
@@ -318,13 +325,13 @@ class _ClientesScreenState extends State<ClientesScreen> {
               _searchQuery = value;
             });
           },
-          style: const TextStyle(
-            color: Colors.white,
+          style: TextStyle(
+            color: _textColor(context),
           ),
-          decoration: const InputDecoration(
+          decoration: InputDecoration(
             hintText: "Buscar cliente...",
             hintStyle: TextStyle(
-              color: Colors.white38,
+              color: _mutedTextColor(context),
             ),
             border: InputBorder.none,
             icon: Icon(
@@ -341,6 +348,7 @@ class _ClientesScreenState extends State<ClientesScreen> {
     Map<String, dynamic> cliente,
     String id,
   ) {
+    final isDark = _isDark(context);
     return GestureDetector(
       onTap: () {
         _verEquiposCliente(
@@ -356,8 +364,8 @@ class _ClientesScreenState extends State<ClientesScreen> {
         border: 1,
         linearGradient: LinearGradient(
           colors: [
-            Colors.white.withOpacity(0.08),
-            Colors.white.withOpacity(0.02),
+            isDark ? Colors.white.withOpacity(0.08) : const Color(0xFFFFFFFF),
+            isDark ? Colors.white.withOpacity(0.02) : const Color(0xFFF8FAFC),
           ],
         ),
         borderGradient: LinearGradient(
@@ -386,8 +394,8 @@ class _ClientesScreenState extends State<ClientesScreen> {
                   children: [
                     Text(
                       cliente['nombre'] ?? 'Sin Nombre',
-                      style: const TextStyle(
-                        color: Colors.white,
+                      style: TextStyle(
+                        color: _textColor(context),
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
                       ),
@@ -395,8 +403,8 @@ class _ClientesScreenState extends State<ClientesScreen> {
                     const SizedBox(height: 4),
                     Text(
                       cliente['telefono'] ?? 'Sin Teléfono',
-                      style: const TextStyle(
-                        color: Colors.white54,
+                      style: TextStyle(
+                        color: _mutedTextColor(context),
                         fontSize: 13,
                       ),
                     ),
@@ -404,9 +412,9 @@ class _ClientesScreenState extends State<ClientesScreen> {
                 ),
               ),
               IconButton(
-                icon: const Icon(
+                icon: Icon(
                   Icons.edit_outlined,
-                  color: Colors.white70,
+                  color: _isDark(context) ? Colors.white70 : const Color(0xFF475569),
                 ),
                 onPressed: () {
                   _editarCliente(

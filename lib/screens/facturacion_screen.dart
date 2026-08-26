@@ -3,13 +3,13 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:glassmorphism/glassmorphism.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:screenshot/screenshot.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:pasteboard/pasteboard.dart';
 import 'package:share_plus/share_plus.dart';
+import '../widgets/invoice_view.dart';
 
 class FacturacionScreen extends StatefulWidget {
   const FacturacionScreen({super.key});
@@ -134,11 +134,7 @@ class _FacturacionScreenState extends State<FacturacionScreen> {
     return _totalCalculado - entrega;
   }
 
-  String _formatConPuntos(double amount) {
-    String str = amount.toStringAsFixed(0);
-    RegExp reg = RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))');
-    return str.replaceAllMapped(reg, (Match m) => '${m[1]}.');
-  }
+  
 
   String _formatFecha(DateTime date) {
     return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
@@ -459,130 +455,17 @@ class _FacturacionScreenState extends State<FacturacionScreen> {
   }
 
   Widget _buildPreviewTicket() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Screenshot(
-      controller: _screenshotController,
-      child: ColoredBox(
-        // Forzar fondo sólido para capturas correctas
-        color: isDark ? Colors.black : Colors.white,
-        child: GlassmorphicContainer(
-          width: double.infinity,
-          height: 600,
-          borderRadius: 20,
-          blur: 15,
-          alignment: Alignment.topCenter,
-          border: 1,
-          linearGradient: LinearGradient(
-            colors: isDark 
-                ? [const Color(0x14FFFFFF), const Color(0x08FFFFFF)]
-                : [Colors.black.withOpacity(0.05), Colors.black.withOpacity(0.02)],
-          ),
-          borderGradient: const LinearGradient(
-            colors: [
-              Color(0x4D2196F3),
-              Colors.transparent,
-            ],
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(25.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                // 1. Logo arriba de todo
-                if (logoBytes != null)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 20),
-                    child: Image.memory(logoBytes!, height: 80, fit: BoxFit.contain),
-                  ),
-
-                // 2. Cliente (item destacado) y otros datos
-                _ticketRow("Cliente:", _nombreClienteDisplay, isLarge: true),
-                _ticketRow("Método de pago:", _metodoPago),
-                
-                // 3. Estado de pago
-                _ticketRow("Estado de pago:", _estadoPago),
-
-                // 4. Fecha formato 03/03/2026
-                _ticketRow("Fecha:", _formatFecha(_fechaFactura)),
-                
-                const SizedBox(height: 25),
-
-                // 5. Cuadro Detalles del Trabajo
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(15),
-                  decoration: BoxDecoration(
-                    color: isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.05),
-                    borderRadius: BorderRadius.circular(15),
-                    border: Border.all(color: isDark ? Colors.white12 : Colors.black12),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        "DETALLES DEL TRABAJO",
-                        style: TextStyle(
-                          color: Colors.blueAccent,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                          letterSpacing: 1.1,
-                        ),
-                      ),
-                      Divider(color: isDark ? Colors.white10 : Colors.black12, height: 20),
-                      Text(
-                        "Modelo: ${_datosReparacion?['equipo'] ?? '-'}",
-                        style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 15),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        "Falla: ${_datosReparacion?['falla'] ?? '-'}",
-                        style: const TextStyle(color: Colors.red, fontSize: 15, fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        "Reparación: ${_reparacionRealizadaCtrl.text.isNotEmpty ? _reparacionRealizadaCtrl.text : '-'}",
-                        style: const TextStyle(color: Colors.green, fontSize: 15, fontWeight: FontWeight.bold),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const Spacer(),
-
-                // 6. Total a abonar
-                Text(
-                  "TOTAL A ABONAR",
-                  style: TextStyle(color: Theme.of(context).hintColor, fontSize: 14, letterSpacing: 1.2),
-                ),
-                const SizedBox(height: 5),
-                
-                // 7. Precio total
-                Text(
-                  "\$${_formatConPuntos(_totalCalculado)}",
-                  style: TextStyle(
-                    fontFamily: 'WhiskeyGirlsCondensedItalic',
-                    color: Theme.of(context).colorScheme.onSurface,
-                    fontSize: 38, // Tamaño reducido según lo pedido
-                  ),
-                ),
-
-                const SizedBox(height: 20),
-
-                // 8. Mensaje final
-                Text(
-                  "¡Gracias por confiar en el servicio técnico de Conección One!",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Theme.of(context).hintColor,
-                    fontSize: 12,
-                    fontStyle: FontStyle.italic,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
+    return InvoiceView(
+      screenshotController: _screenshotController,
+      logoBytes: logoBytes,
+      nombreCliente: _nombreClienteDisplay,
+      metodoPago: _metodoPago,
+      estadoPago: _estadoPago,
+      fechaFactura: _fechaFactura,
+      datosReparacion: _datosReparacion,
+      reparacionRealizada: _reparacionRealizadaCtrl.text,
+      total: _totalCalculado,
+      height: 600,
     );
   }
 
@@ -742,35 +625,5 @@ class _FacturacionScreenState extends State<FacturacionScreen> {
       );
   }
 
-  Widget _ticketRow(
-    String label,
-    String value,
-    {bool isLarge = false}
-  ) =>
-      Padding(
-        padding: EdgeInsets.symmetric(
-          vertical: isLarge ? 6 : 4,
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              label,
-              style: TextStyle(
-                color: isLarge ? Theme.of(context).colorScheme.onSurface : Theme.of(context).hintColor,
-                fontSize: isLarge ? 17 : 14,
-                fontWeight: isLarge ? FontWeight.bold : FontWeight.normal,
-              ),
-            ),
-            Text(
-              value,
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurface,
-                fontSize: isLarge ? 17 : 14,
-                fontWeight: isLarge ? FontWeight.bold : FontWeight.normal,
-              ),
-            ),
-          ],
-        ),
-      );
+  
 }
