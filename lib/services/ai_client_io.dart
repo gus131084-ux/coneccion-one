@@ -6,14 +6,13 @@ import 'package:coneccionone/services/tts/tts_engine.dart';
 
 class AiClient {
   static const _models = [
-    'gemini-3.5-flash-lite',
     'gemini-3.6-flash',
     'gemini-3.5-flash',
   ];
   
   static const _key = String.fromEnvironment(
     'AI_API_KEY', 
-    defaultValue: 'AQ.Ab8RN6KOFMSpOT54iAqBTKmKECokexVl2EBNU37x76kchyfkyA',
+    defaultValue: 'AQ.Ab8RN6L4vFvKDbDZrCKZFK3q_0tYB7zHwq5tm-YA0VifoXPJLQ',
   );
 
   /// Carga el ID de personalidad guardado en Firestore

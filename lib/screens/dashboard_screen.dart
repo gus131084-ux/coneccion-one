@@ -202,18 +202,22 @@ class _DashboardScreenState
 
   @override
   Widget build(BuildContext context) {
-    // El fondo, el tema y la navegación pertenecen a MainLayout. Este widget
-    // solo aporta el contenido enriquecido del dashboard.
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 25),
-      child: SingleChildScrollView(
-        child: Column(
-                      crossAxisAlignment:
-                          CrossAxisAlignment.start,
-                      children: [
-                      // ===== CARDS SUPERIORES =====
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isLargeScreen = constraints.maxWidth > 900;
 
-                      Row(
+        return Padding(
+          padding: EdgeInsets.symmetric(
+            horizontal: isLargeScreen ? 30 : 15,
+            vertical: isLargeScreen ? 25 : 15,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // ===== CARDS SUPERIORES =====
+                isLargeScreen
+                    ? Row(
                         children: [
                           Expanded(
                             child: _buildMiniAcceso(
@@ -222,9 +226,7 @@ class _DashboardScreenState
                               Colors.blue,
                             ),
                           ),
-
                           const SizedBox(width: 15),
-
                           Expanded(
                             child: _buildMiniAcceso(
                               "Reparaciones",
@@ -232,9 +234,7 @@ class _DashboardScreenState
                               Colors.orange,
                             ),
                           ),
-
                           const SizedBox(width: 15),
-
                           Expanded(
                             child: _buildMiniAcceso(
                               "Ventas",
@@ -242,9 +242,7 @@ class _DashboardScreenState
                               Colors.green,
                             ),
                           ),
-
                           const SizedBox(width: 15),
-
                           Expanded(
                             child: _buildMiniAcceso(
                               "Ranking",
@@ -253,9 +251,7 @@ class _DashboardScreenState
                               onTap: _showRepairRanking,
                             ),
                           ),
-
                           const SizedBox(width: 15),
-
                           Expanded(
                             child: _buildMiniAcceso(
                               "Asistente IA",
@@ -266,45 +262,68 @@ class _DashboardScreenState
                             ),
                           ),
                         ],
+                      )
+                    : GridView.count(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        crossAxisCount: 2,
+                        mainAxisSpacing: 12,
+                        crossAxisSpacing: 12,
+                        childAspectRatio: 1.4,
+                        children: [
+                          _buildMiniAcceso("Clientes", Icons.people_outline, Colors.blue),
+                          _buildMiniAcceso("Reparaciones", Icons.build_circle_outlined, Colors.orange),
+                          _buildMiniAcceso("Ventas", Icons.shopping_cart_outlined, Colors.green),
+                          _buildMiniAcceso("Ranking", Icons.leaderboard_outlined, Colors.purple, onTap: _showRepairRanking),
+                          _buildMiniAcceso("Asistente IA", Icons.smart_toy_outlined, Colors.cyan, onTap: () => setState(() => _showAiAssistant = true), isAssistant: true),
+                        ],
                       ),
 
-                      const SizedBox(height: 25),
+                const SizedBox(height: 25),
 
-                      if (_showAiAssistant) ...[
-                        _buildAiAssistantCard(),
-                        const SizedBox(height: 25),
-                      ],
+                if (_showAiAssistant) ...[
+                  _buildAiAssistantCard(),
+                  const SizedBox(height: 25),
+                ],
 
-                      // ===== FINANZAS =====
+                // ===== FINANZAS =====
+                _buildFinanzasInteligentes(),
 
-                      _buildFinanzasInteligentes(),
+                const SizedBox(height: 25),
 
-                      const SizedBox(height: 25),
-
-                      // ===== SECCIÓN: Mis Clientes =====
-                      // ===== PARTE INFERIOR =====
-
-                      Row(
-                        crossAxisAlignment:
-                            CrossAxisAlignment.start,
+                // ===== SECCIÓN: Mis Clientes y Detalles =====
+                isLargeScreen
+                    ? Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Expanded(
                             flex: 2,
                             child: _buildMisClientesSection(),
                           ),
-
                           const SizedBox(width: 20),
-
-                          // RIGHT SIDE SMALL PANEL (inventory) and new phone security panel
                           Expanded(
                             flex: 1,
                             child: _buildClientDetailsPanel(),
                           ),
                         ],
+                      )
+                    : Column(
+                        children: [
+                          _buildMisClientesSection(),
+                          const SizedBox(height: 20),
+                          _buildClientDetailsPanel(),
+                        ],
                       ),
-                    ],
-                  ),
-      ),
+
+                const SizedBox(height: 25),
+
+                // ===== STOCK BAJO / INVENTARIO CRITICO =====
+                const GlassInventorySummary(),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -806,109 +825,168 @@ class _DashboardScreenState
     final isDark = _isDark(context);
     final textColor = _textColor(context);
     final mutedTextColor = _mutedTextColor(context);
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance.collection('clientes').orderBy('nombre').snapshots(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          return const SizedBox.shrink();
-        }
 
-        final docs = snapshot.data!.docs;
+    return LayoutBuilder(builder: (context, constraints) {
+      final isCompact = constraints.maxWidth < 400;
 
-        return GlassmorphicContainer(
-          width: double.infinity,
-          borderRadius: 20,
-          blur: 15,
-          height: 552,
-          border: 1,
-          linearGradient: LinearGradient(
-            colors: isDark
-                ? const [Color.fromRGBO(255, 255, 255, 0.04), Color.fromRGBO(255, 255, 255, 0.02)]
-                : const [Color(0xFFFFFFFF), Color(0xFFF8FAFC)],
-          ),
-          borderGradient: LinearGradient(colors: [_cardBorderColor(context), Colors.transparent]),
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text("Mis Clientes", style: TextStyle(color: textColor, fontSize: 18, fontWeight: FontWeight.bold)),
-                    ElevatedButton.icon(
-                      onPressed: _crearCliente,
-                      icon: const Icon(Icons.person_add_alt_1, size: 18),
-                      label: const Text('Nuevo cliente'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF3B82F6),
-                        minimumSize: const Size(0, 34),
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Expanded(
-                  child: ListView.builder(
-                    itemCount: docs.length,
-                    itemBuilder: (ctx, i) {
-                      final data = docs[i].data() as Map<String, dynamic>;
-                      final isSelected = _selectedClientId == docs[i].id;
-                      final isHovered = _hoveredClientId == docs[i].id;
-                      return MouseRegion(
-                        onEnter: (_) => setState(() => _hoveredClientId = docs[i].id),
-                        onExit: (_) => setState(() => _hoveredClientId = null),
-                        child: GestureDetector(
-                          onTap: () => setState(() {
-                            _selectedClientId = docs[i].id;
-                            _selectedClientData = data;
-                          }),
-                          child: AnimatedScale(
-                            scale: isSelected || isHovered ? 1.015 : 1,
-                            duration: const Duration(milliseconds: 160),
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 160),
-                              margin: const EdgeInsets.only(bottom: 8),
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                              decoration: BoxDecoration(
-                                color: isSelected ? const Color(0xFF3B82F6).withOpacity(isDark ? 0.18 : 0.12) : (isDark ? Colors.white.withOpacity(0.04) : const Color(0xFFF8FAFC)),
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: isSelected ? const Color(0xFF3B82F6) : _cardBorderColor(context)),
-                              ),
-                              child: Row(
+      return StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance.collection('clientes').orderBy('nombre').snapshots(),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) {
+            return const SizedBox.shrink();
+          }
+
+          final docs = snapshot.data!.docs;
+
+          return GlassmorphicContainer(
+            width: double.infinity,
+            borderRadius: 20,
+            blur: 15,
+            height: 552,
+            border: 1,
+            linearGradient: LinearGradient(
+              colors: isDark
+                  ? const [Color.fromRGBO(255, 255, 255, 0.04), Color.fromRGBO(255, 255, 255, 0.02)]
+                  : const [Color(0xFFFFFFFF), Color(0xFFF8FAFC)],
+            ),
+            borderGradient:
+                LinearGradient(colors: [_cardBorderColor(context), Colors.transparent]),
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  isCompact
+                      ? Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const CircleAvatar(radius: 18, child: Icon(Icons.person_outline, size: 20)),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(data['nombre'] ?? 'Sin nombre', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
-                                  Text(data['telefono'] ?? 'Sin teléfono', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: mutedTextColor, fontSize: 12)),
-                                ],
+                            Text("Mis Clientes",
+                                style: TextStyle(
+                                    color: textColor, fontSize: 18, fontWeight: FontWeight.bold)),
+                            const SizedBox(height: 10),
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton.icon(
+                                onPressed: _crearCliente,
+                                icon: const Icon(Icons.person_add_alt_1, size: 18),
+                                label: const Text('Nuevo cliente'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF3B82F6),
+                                  minimumSize: const Size(0, 34),
+                                ),
                               ),
                             ),
-                            IconButton(tooltip: 'Nuevo ingreso', onPressed: () => _abrirDialogoIngresoParaCliente(data, docs[i].id), icon: const Icon(Icons.add_circle_outline, color: Color(0xFF3B82F6))),
-                            IconButton(tooltip: 'Editar cliente', onPressed: () => _editarCliente(docs[i].id, data), icon: const Icon(Icons.edit_outlined, color: Colors.orangeAccent)),
-                            IconButton(tooltip: 'Eliminar cliente', onPressed: () => _confirmarEliminacionCliente(docs[i].id), icon: const Icon(Icons.delete_outline, color: Colors.redAccent)),
                           ],
+                        )
+                      : Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text("Mis Clientes",
+                                style: TextStyle(
+                                    color: textColor, fontSize: 18, fontWeight: FontWeight.bold)),
+                            ElevatedButton.icon(
+                              onPressed: _crearCliente,
+                              icon: const Icon(Icons.person_add_alt_1, size: 18),
+                              label: const Text('Nuevo cliente'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF3B82F6),
+                                minimumSize: const Size(0, 34),
+                                padding: const EdgeInsets.symmetric(horizontal: 12),
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                            ),
+                          ],
+                        ),
+                  const SizedBox(height: 15),
+                  Expanded(
+                    child: ListView.builder(
+                      itemCount: docs.length,
+                      itemBuilder: (ctx, i) {
+                        final data = docs[i].data() as Map<String, dynamic>;
+                        final isSelected = _selectedClientId == docs[i].id;
+                        final isHovered = _hoveredClientId == docs[i].id;
+                        return MouseRegion(
+                          onEnter: (_) => setState(() => _hoveredClientId = docs[i].id),
+                          onExit: (_) => setState(() => _hoveredClientId = null),
+                          child: GestureDetector(
+                            onTap: () => setState(() {
+                              _selectedClientId = docs[i].id;
+                              _selectedClientData = data;
+                            }),
+                            child: AnimatedScale(
+                              scale: isSelected || isHovered ? 1.015 : 1,
+                              duration: const Duration(milliseconds: 160),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 160),
+                                margin: const EdgeInsets.only(bottom: 8),
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: isSelected
+                                      ? const Color(0xFF3B82F6).withOpacity(isDark ? 0.18 : 0.12)
+                                      : (isDark
+                                          ? Colors.white.withOpacity(0.04)
+                                          : const Color(0xFFF8FAFC)),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                      color: isSelected
+                                          ? const Color(0xFF3B82F6)
+                                          : _cardBorderColor(context)),
+                                ),
+                                child: Row(
+                                  children: [
+                                    const CircleAvatar(
+                                        radius: 18, child: Icon(Icons.person_outline, size: 20)),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(data['nombre'] ?? 'Sin nombre',
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: TextStyle(
+                                                  color: textColor, fontWeight: FontWeight.bold)),
+                                          Text(data['telefono'] ?? 'Sin teléfono',
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style:
+                                                  TextStyle(color: mutedTextColor, fontSize: 12)),
+                                        ],
+                                      ),
+                                    ),
+                                    IconButton(
+                                        tooltip: 'Nuevo ingreso',
+                                        onPressed: () =>
+                                            _abrirDialogoIngresoParaCliente(data, docs[i].id),
+                                        icon: const Icon(Icons.add_circle_outline,
+                                            color: Color(0xFF3B82F6))),
+                                    IconButton(
+                                        tooltip: 'Editar cliente',
+                                        onPressed: () => _editarCliente(docs[i].id, data),
+                                        icon: const Icon(Icons.edit_outlined,
+                                            color: Colors.orangeAccent)),
+                                    IconButton(
+                                        tooltip: 'Eliminar cliente',
+                                        onPressed: () => _confirmarEliminacionCliente(docs[i].id),
+                                        icon: const Icon(Icons.delete_outline,
+                                            color: Colors.redAccent)),
+                                  ],
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                      );
-                    },
+                        );
+                      },
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        );
-      },
-    );
+          );
+        },
+      );
+    });
   }
 
   Widget _buildClientDetailsPanel() {
@@ -1446,237 +1524,170 @@ class _DashboardScreenState
     final isDark = _isDark(context);
     final textColor = _textColor(context);
     final mutedTextColor = _mutedTextColor(context);
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('facturas')
-          .snapshots(),
-      builder: (context, snapshot) {
-        double ingresos = 0;
-        double gastos = 0;
 
-        if (snapshot.hasData) {
-          final ahora = DateTime.now();
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isLargeScreen = constraints.maxWidth > 900;
 
-          for (var doc
-              in snapshot.data!.docs) {
-            final data =
-                doc.data()
-                    as Map<String, dynamic>;
+        return StreamBuilder<QuerySnapshot>(
+          stream: FirebaseFirestore.instance.collection('facturas').snapshots(),
+          builder: (context, snapshot) {
+            double ingresos = 0;
+            double gastos = 0;
 
-            final fecha = _invoiceDate(data);
-            if (fecha == null) continue;
-
-            bool incluir = false;
-
-            if (_filtroFinanzas ==
-                "Esta Semana") {
-              incluir = fecha.isAfter(
-                ahora.subtract(
-                  const Duration(days: 7),
-                ),
-              );
-            } else if (_filtroFinanzas ==
-                "Este Mes") {
-              incluir =
-                  fecha.month ==
-                          ahora.month &&
-                      fecha.year ==
-                          ahora.year;
-            } else {
-              incluir =
-                  fecha.year ==
-                      ahora.year;
+            if (snapshot.hasData) {
+              final ahora = DateTime.now();
+              for (var doc in snapshot.data!.docs) {
+                final data = doc.data() as Map<String, dynamic>;
+                final fecha = _invoiceDate(data);
+                if (fecha == null) continue;
+                bool incluir = false;
+                if (_filtroFinanzas == "Esta Semana") {
+                  incluir = fecha.isAfter(ahora.subtract(const Duration(days: 7)));
+                } else if (_filtroFinanzas == "Este Mes") {
+                  incluir = fecha.month == ahora.month && fecha.year == ahora.year;
+                } else {
+                  incluir = fecha.year == ahora.year;
+                }
+                if (incluir) {
+                  ingresos += _asDouble(data['total']);
+                  gastos += _expenseForInvoice(data);
+                }
+              }
             }
 
-            if (incluir) {
-              ingresos += _asDouble(data['total']);
-              gastos += _expenseForInvoice(data);
-            }
-          }
-        }
+            double ganancia = ingresos - gastos;
 
-        double ganancia =
-            ingresos - gastos;
-
-        return GlassmorphicContainer(
-          width: double.infinity,
-          height: 215,
-          borderRadius: 25,
-          blur: 20,
-          alignment: Alignment.topLeft,
-          border: 1,
-          linearGradient: LinearGradient(
-            colors: isDark
-                ? [Colors.white.withOpacity(0.08), Colors.white.withOpacity(0.03)]
-                : const [Color(0xFFFFFFFF), Color(0xFFF8FAFC)],
-          ),
-          borderGradient: LinearGradient(
-            colors: [
-              Colors.greenAccent
-                  .withOpacity(0.4),
-              Colors.transparent,
-            ],
-          ),
-          child: Padding(
-            padding:
-                const EdgeInsets.all(25),
-            child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment:
-                      MainAxisAlignment
-                          .spaceBetween,
+            return GlassmorphicContainer(
+              width: double.infinity,
+              height: isLargeScreen ? 215 : 430,
+              borderRadius: 25,
+              blur: 20,
+              alignment: Alignment.topLeft,
+              border: 1,
+              linearGradient: LinearGradient(
+                colors: isDark
+                    ? [Colors.white.withOpacity(0.08), Colors.white.withOpacity(0.03)]
+                    : const [Color(0xFFFFFFFF), Color(0xFFF8FAFC)],
+              ),
+              borderGradient: LinearGradient(
+                colors: [Colors.greenAccent.withOpacity(0.4), Colors.transparent],
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Column(
-                      crossAxisAlignment:
-                          CrossAxisAlignment
-                              .start,
+                    Row(
                       children: [
-                        Text(
-                          "Resumen Financiero",
-                          style: TextStyle(
-                            color: textColor,
-                            fontSize: 22,
-                            fontWeight:
-                                FontWeight
-                                    .bold,
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text("Resumen Financiero",
+                                  style: TextStyle(
+                                      color: textColor,
+                                      fontSize: isLargeScreen ? 22 : 18,
+                                      fontWeight: FontWeight.bold)),
+                              const SizedBox(height: 4),
+                              Text("Ingresos, gastos y ganancias",
+                                  style: TextStyle(color: mutedTextColor, fontSize: 13)),
+                            ],
                           ),
                         ),
-
-                        SizedBox(height: 4),
-
-                        Text(
-                          "Ingresos, gastos y ganancias",
-                          style: TextStyle(
-                            color: mutedTextColor,
-                            fontSize: 13,
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: isDark ? Colors.white.withOpacity(0.05) : const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: DropdownButton<String>(
+                            value: _filtroFinanzas,
+                            dropdownColor: Theme.of(context).colorScheme.surface,
+                            underline: const SizedBox(),
+                            icon: const Icon(Icons.keyboard_arrow_down,
+                                color: Colors.greenAccent, size: 18),
+                            style: const TextStyle(
+                                color: Colors.greenAccent,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12),
+                            onChanged: (val) => setState(() => _filtroFinanzas = val!),
+                            items: ["Esta Semana", "Este Mes", "Este Año"]
+                                .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                                .toList(),
                           ),
                         ),
                       ],
                     ),
-
-                    Container(
-                      padding:
-                          const EdgeInsets
-                              .symmetric(
-                        horizontal: 15,
-                        vertical: 5,
-                      ),
-                      decoration:
-                          BoxDecoration(
-                        color: isDark ? Colors.white.withOpacity(0.05) : const Color(0xFFF1F5F9),
-                        borderRadius:
-                            BorderRadius
-                                .circular(
-                                    12),
-                      ),
-                      child:
-                          DropdownButton<
-                              String>(
-                        value:
-                            _filtroFinanzas,
-                        dropdownColor: Theme.of(context).colorScheme.surface,
-                        underline:
-                            const SizedBox(),
-                        icon: const Icon(
-                          Icons
-                              .keyboard_arrow_down,
-                          color: Colors
-                              .greenAccent,
-                        ),
-                        style:
-                            const TextStyle(
-                          color: Colors
-                              .greenAccent,
-                          fontWeight:
-                              FontWeight
-                                  .bold,
-                        ),
-                        onChanged: (val) {
-                          setState(() {
-                            _filtroFinanzas =
-                                val!;
-                          });
-                        },
-                        items: [
-                          "Esta Semana",
-                          "Este Mes",
-                          "Este Año",
-                        ]
-                            .map(
-                              (e) =>
-                                  DropdownMenuItem(
-                                value: e,
-                                child: Text(e),
-                              ),
+                    const SizedBox(height: 20),
+                    Expanded(
+                      child: isLargeScreen
+                          ? Row(
+                              children: [
+                                Expanded(
+                                    child: _buildFinanceCard(
+                                        "Ingresos",
+                                        "\$${ingresos.toStringAsFixed(0)}",
+                                        Icons.trending_up,
+                                        isDark ? Colors.white : const Color(0xFF2563EB),
+                                        onTap: () => _showFinancialBreakdown(
+                                            context, 'Ingresos', 'ingresos', snapshot.data!.docs))),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                    child: _buildFinanceCard(
+                                        "Gastos",
+                                        "\$${gastos.toStringAsFixed(0)}",
+                                        Icons.trending_down,
+                                        Colors.red,
+                                        onTap: () => _showFinancialBreakdown(
+                                            context, 'Gastos', 'gastos', snapshot.data!.docs))),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                    child: _buildFinanceCard(
+                                        "Ganancia",
+                                        "\$${ganancia.toStringAsFixed(0)}",
+                                        Icons.payments_outlined,
+                                        Colors.green,
+                                        onTap: () => _showFinancialBreakdown(
+                                            context, 'Ganancia', 'ganancia', snapshot.data!.docs))),
+                              ],
                             )
-                            .toList(),
-                      ),
+                          : Column(
+                              children: [
+                                Expanded(
+                                    child: _buildFinanceCard(
+                                        "Ingresos",
+                                        "\$${ingresos.toStringAsFixed(0)}",
+                                        Icons.trending_up,
+                                        isDark ? Colors.white : const Color(0xFF2563EB),
+                                        onTap: () => _showFinancialBreakdown(
+                                            context, 'Ingresos', 'ingresos', snapshot.data!.docs))),
+                                const SizedBox(height: 10),
+                                Expanded(
+                                    child: _buildFinanceCard(
+                                        "Gastos",
+                                        "\$${gastos.toStringAsFixed(0)}",
+                                        Icons.trending_down,
+                                        Colors.red,
+                                        onTap: () => _showFinancialBreakdown(
+                                            context, 'Gastos', 'gastos', snapshot.data!.docs))),
+                                const SizedBox(height: 10),
+                                Expanded(
+                                    child: _buildFinanceCard(
+                                        "Ganancia",
+                                        "\$${ganancia.toStringAsFixed(0)}",
+                                        Icons.payments_outlined,
+                                        Colors.green,
+                                        onTap: () => _showFinancialBreakdown(
+                                            context, 'Ganancia', 'ganancia', snapshot.data!.docs))),
+                              ],
+                            ),
                     ),
                   ],
                 ),
-
-                const SizedBox(height: 14),
-
-                Expanded(
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: _buildFinanceCard(
-                          "Ingresos",
-                          "\$${ingresos.toStringAsFixed(0)}",
-                          Icons.trending_up,
-                          isDark ? Colors.white : const Color(0xFF2563EB),
-                          onTap: () => _showFinancialBreakdown(
-                            context,
-                            'Ingresos',
-                            'ingresos',
-                            snapshot.data!.docs,
-                          ),
-                        ),
-                      ),
-
-                      const SizedBox(width: 12),
-
-                      Expanded(
-                        child: _buildFinanceCard(
-                          "Gastos",
-                          "\$${gastos.toStringAsFixed(0)}",
-                          Icons.trending_down,
-                          Colors.red,
-                          onTap: () => _showFinancialBreakdown(
-                            context,
-                            'Gastos',
-                            'gastos',
-                            snapshot.data!.docs,
-                          ),
-                        ),
-                      ),
-
-                      const SizedBox(width: 12),
-
-                      Expanded(
-                        child: _buildFinanceCard(
-                          "Ganancia",
-                          "\$${ganancia.toStringAsFixed(0)}",
-                          Icons.payments_outlined,
-                          Colors.green,
-                          onTap: () => _showFinancialBreakdown(
-                            context,
-                            'Ganancia',
-                            'ganancia',
-                            snapshot.data!.docs,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         );
       },
     );

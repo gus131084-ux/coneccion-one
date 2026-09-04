@@ -1,5 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -267,9 +269,14 @@ class _MainLayoutState extends State<MainLayout> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bool isMobile = !kIsWeb && 
+        (defaultTargetPlatform == TargetPlatform.android || 
+         defaultTargetPlatform == TargetPlatform.iOS);
 
     return Scaffold(
       key: _scaffoldKey,
+      appBar: isMobile ? _buildAppBar() : null,
+      drawer: isMobile ? _buildDrawer() : null,
       endDrawer: _buildClientDetailsDrawer(),
       body: Container(
         width: double.infinity,
@@ -285,7 +292,7 @@ class _MainLayoutState extends State<MainLayout> {
         ),
         child: Column(
           children: [
-            _buildTopNavigation(),
+            if (!isMobile) _buildTopNavigation(),
             Expanded(child: _buildCurrentScreen()),
           ],
         ),
@@ -530,19 +537,31 @@ class _MainLayoutState extends State<MainLayout> {
         child: Column(
           children: [
             DrawerHeader(
-              child: Center(
-                child: SizedBox(
-                  width: 200,
-                  height: 80,
-                  child: logoBytes != null
-                      ? Image.memory(
-                          logoBytes!,
-                          fit: BoxFit.contain,
-                          errorBuilder: (_, __, ___) =>
-                              const SizedBox.shrink(),
-                        )
-                      : const SizedBox.shrink(),
-                ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  SizedBox(
+                    width: 200,
+                    height: 80,
+                    child: logoBytes != null
+                        ? Image.memory(
+                            logoBytes!,
+                            fit: BoxFit.contain,
+                            errorBuilder: (_, __, ___) =>
+                                const SizedBox.shrink(),
+                          )
+                        : const Icon(Icons.flash_on, color: Color(0xFF3B82F6), size: 40),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    '¡Bienvenido, $nombreAdmin!',
+                    style: TextStyle(
+                      color: isDark ? Colors.white70 : Colors.black87,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
               ),
             ),
             const Divider(height: 1),
@@ -643,7 +662,7 @@ class _MainLayoutState extends State<MainLayout> {
   PreferredSizeWidget _buildAppBar() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return AppBar(
-      backgroundColor: isDark ? const Color(0xE6000000) : const Color.fromRGBO(255, 255, 255, 0.9),
+      backgroundColor: isDark ? const Color(0xFF111111) : const Color(0xFFF8FAFC),
       elevation: 0,
       title: Text(
         _menuLabels[_selectedIndex],
@@ -652,15 +671,28 @@ class _MainLayoutState extends State<MainLayout> {
           fontWeight: FontWeight.bold,
         ),
       ),
-      leading: Builder(
-        builder: (context) => IconButton(
-          icon: Icon(
-            Icons.menu,
-            color: Theme.of(context).colorScheme.onSurface,
-          ),
-          onPressed: () {
-            Scaffold.of(context).openDrawer();
-          },
+      centerTitle: true,
+      leading: IconButton(
+        icon: Icon(
+          Icons.menu,
+          color: Theme.of(context).colorScheme.onSurface,
+        ),
+        onPressed: () {
+          _scaffoldKey.currentState?.openDrawer();
+        },
+      ),
+      actions: [
+        IconButton(
+          tooltip: isDark ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro',
+          onPressed: () => themeNotifier.value = isDark ? ThemeMode.light : ThemeMode.dark,
+          icon: Icon(isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined, color: Theme.of(context).colorScheme.onSurface),
+        ),
+      ],
+      bottom: PreferredSize(
+        preferredSize: const Size.fromHeight(1),
+        child: Container(
+          color: isDark ? Colors.white10 : Colors.black12,
+          height: 1,
         ),
       ),
     );

@@ -7,7 +7,7 @@ import 'package:coneccionone/services/tts/tts_engine.dart';
 class GeminiJarvisEngine implements TtsEngine {
   static const String _defaultApiKey = String.fromEnvironment(
     'AI_API_KEY',
-    defaultValue: 'AQ.Ab8RN6KOFMSpOT54iAqBTKmKECokexVl2EBNU37x76kchyfkyA',
+    defaultValue: 'AQ.Ab8RN6L4vFvKDbDZrCKZFK3q_0tYB7zHwq5tm-YA0VifoXPJLQ',
   );
 
   @override
@@ -78,8 +78,6 @@ class GeminiJarvisEngine implements TtsEngine {
 
     final ttsModels = [
       'gemini-2.5-flash-preview-tts',
-      'gemini-3.1-flash-tts-preview',
-      'gemini-2.5-pro-preview-tts',
     ];
 
     final client = HttpClient();

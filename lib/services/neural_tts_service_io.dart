@@ -7,6 +7,7 @@ import 'package:coneccionone/services/tts/gemini_jarvis_engine.dart';
 import 'package:coneccionone/services/tts/openai_engine.dart';
 import 'package:coneccionone/services/tts/tts_engine.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:path_provider/path_provider.dart';
 
 class NeuralTtsService {
@@ -30,9 +31,13 @@ class NeuralTtsService {
     });
   }
 
-  /// Carga la configuración personalizada de voz desde Firestore si existe
+  /// Carga la configuración personalizada de voz desde Firestore asegurando el hilo correcto
   Future<Map<String, dynamic>?> _loadStoredVoiceConfig() async {
     try {
+      if (SchedulerBinding.instance.schedulerPhase == SchedulerPhase.persistentCallbacks) {
+        await SchedulerBinding.instance.endOfFrame;
+      }
+      
       final doc = await FirebaseFirestore.instance.collection('configuracion').doc('voz_ia').get();
       if (doc.exists) {
         return doc.data();
@@ -62,18 +67,15 @@ class NeuralTtsService {
     final personalityId = options?.personalityId ?? config?['personality_id'] as String?;
     final speed = options?.speed ?? (config?['velocidad'] as num?)?.toDouble() ?? 0.96;
 
-    // Ordenamos la lista de motores según la preferencia real configurada
     List<TtsEngine> enginesToTry = [];
     if (preferredEngine == 'openai') {
       enginesToTry = [OpenAiEngine(), ElevenLabsEngine(), GeminiJarvisEngine()];
     } else if (preferredEngine == 'gemini') {
       enginesToTry = [GeminiJarvisEngine(), ElevenLabsEngine(), OpenAiEngine()];
     } else {
-      // Por defecto Jarvis / ElevenLabs al tope
       enginesToTry = [ElevenLabsEngine(), OpenAiEngine(), GeminiJarvisEngine()];
     }
 
-    // Recorremos los motores en orden estricto de prioridad
     for (final engine in enginesToTry) {
       String? key;
       if (engine is ElevenLabsEngine) key = customElevenKey;
@@ -97,17 +99,17 @@ class NeuralTtsService {
           ),
         );
         _activeEngineName = res.engineName;
-        debugPrint('¡Éxito absoluto con la voz neural: ${_activeEngineName}!');
+        debugPrint('¡Éxito absoluto con la voz neural: $_activeEngineName!');
         return res;
       } catch (e) {
         debugPrint('FALLÓ el motor ${engine.name}: $e. Probando siguiente alternativa...');
       }
     }
 
-    throw StateError('No se pudo generar voz en ninguno de los motores configurados. Revisa tu conexión a internet o tus API Keys.');
+    throw StateError('No se pudo generar voz en ninguno de los motores configurados.');
   }
 
-  /// Sintetiza y reproduce con AudioPlayer, deteniendo automáticamente cualquier audio previo
+  /// Sintetiza y reproduce forzando compatibilidad nativa en Windows
   Future<void> speak(
     String text, {
     TtsOptions? options,
@@ -120,20 +122,27 @@ class NeuralTtsService {
       );
 
       final tempDir = await getTemporaryDirectory();
-      final ext = result.format == TtsAudioFormat.wav ? 'wav' : 'mp3';
-      final file = File('${tempDir.path}/jarvis_voice_${DateTime.now().millisecondsSinceEpoch}.$ext');
+      // Guardamos en formato wav para asegurar compatibilidad absoluta con el reproductor nativo del sistema en Windows
+      final file = File('${tempDir.path}/jarvis_voice_${DateTime.now().millisecondsSinceEpoch}.wav');
       await file.writeAsBytes(result.audioBytes, flush: true);
 
-      try {
-        await _audioPlayer.play(DeviceFileSource(file.path));
-      } catch (e) {
-        debugPrint('Fallback de audio en Windows: $e');
-        if (Platform.isWindows && result.format == TtsAudioFormat.wav) {
-          final escapedPath = file.path.replaceAll("'", "''");
-          Process.run('powershell', ['-NoProfile', '-Command', "(New-Object System.Media.SoundPlayer '$escapedPath').Play()"]);
-        }
+      if (Platform.isWindows) {
+        // En Windows usamos PowerShell con MediaPlayer para forzar la salida por el dispositivo predeterminado actual de la PC (Smart TV o Auriculares)
+        _isPlaying = true;
+        final escapedPath = file.path.replaceAll("'", "''");
+        await Process.run('powershell', [
+          '-NoProfile',
+          '-Command',
+          "Add-Type -AssemblyName presentationCore; \$player = New-Object System.Windows.Media.MediaPlayer; \$player.Open([Uri]'$escapedPath'); \$player.Play(); Start-Sleep -Milliseconds 4000; while(\$player.Position -lt \$player.NaturalDuration.TimeSpan){ Start-Sleep -Milliseconds 200 }"
+        ]);
+        _isPlaying = false;
+      } else {
+        await _audioPlayer.stop();
+        await _audioPlayer.setSource(DeviceFileSource(file.path));
+        await _audioPlayer.resume();
       }
     } catch (e) {
+      _isPlaying = false;
       debugPrint('Error en NeuralTtsService.speak: $e');
       rethrow;
     }
@@ -142,10 +151,11 @@ class NeuralTtsService {
   /// Detiene la reproducción actual inmediatamente
   Future<void> stop() async {
     try {
-      await _audioPlayer.stop();
       _isPlaying = false;
+      await _audioPlayer.stop();
       if (Platform.isWindows) {
-        Process.run('powershell', ['-NoProfile', '-Command', "(New-Object System.Media.SoundPlayer).Stop()"]);
+        // Detenemos cualquier proceso hijo de PowerShell que esté reproduciendo audio
+        Process.run('powershell', ['-NoProfile', '-Command', "Get-Process powershell | Where-Object { \$_.MainWindowTitle -eq '' } | Stop-Process -Force -ErrorAction SilentlyContinue"]);
       }
     } catch (_) {}
   }
