@@ -12,7 +12,7 @@ class AiClient {
   
   static const _key = String.fromEnvironment(
     'AI_API_KEY', 
-    defaultValue: 'AQ.Ab8RN6L4vFvKDbDZrCKZFK3q_0tYB7zHwq5tm-YA0VifoXPJLQ',
+    defaultValue: '',
   );
 
   /// Carga la configuración guardada en Firestore
@@ -43,9 +43,13 @@ class AiClient {
     
     // Usar la clave de Gemini configurada o la predeterminada por entorno/default
     final customGeminiKey = config?['gemini_key'] as String?;
-    final activeKey = (customGeminiKey != null && customGeminiKey.isNotEmpty) 
-        ? customGeminiKey 
+    final activeKey = (customGeminiKey != null && customGeminiKey.trim().isNotEmpty) 
+        ? customGeminiKey.trim() 
         : _key;
+
+    if (activeKey.isEmpty) {
+      return "Error: No se ha configurado una API Key de Gemini en la sección de Configuración.";
+    }
 
     final prompt = '''
 Eres el Asistente de Inteligencia Artificial integrado del sistema de gestión para el taller de servicio técnico "$nombreNegocio" (administrado por "$nombreAdmin").
