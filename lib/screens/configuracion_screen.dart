@@ -418,13 +418,13 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
 
           const SizedBox(height: 16),
 
-          // ── CLAVES API OPCIONALES ─────────────────────────────────────
-          if (AiVoiceCatalog.getVoiceById(_selectedVoiceId).provider == 'gemini') ...[
-            campoTexto("Gemini API Key (Google AI Studio - Opcional)", geminiKeyCtrl, obscure: true),
-          ],
-          if (AiVoiceCatalog.getVoiceById(_selectedVoiceId).provider == 'elevenlabs') ...[
-            campoTexto("ElevenLabs API Key (Opcional)", elevenLabsKeyCtrl, obscure: true),
-          ],
+          // ── CLAVES API ──────────────────────────────────────────────
+          Text("🔑 Claves de API:", style: TextStyle(fontWeight: FontWeight.w700, color: textColor, fontSize: 15)),
+          const SizedBox(height: 10),
+          
+          campoTexto("Gemini API Key (Para I.A. Dashboard y Voz Gemini)", geminiKeyCtrl, obscure: true),
+          campoTexto("ElevenLabs API Key (Para Voces Premium)", elevenLabsKeyCtrl, obscure: true),
+
           if (AiVoiceCatalog.getVoiceById(_selectedVoiceId).provider == 'openai') ...[
             campoTexto("OpenAI API Key (Opcional)", openAiKeyCtrl, obscure: true),
           ],

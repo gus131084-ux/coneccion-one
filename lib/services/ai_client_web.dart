@@ -16,14 +16,14 @@ class AiClient {
     defaultValue: 'AQ.Ab8RN6KOFMSpOT54iAqBTKmKECokexVl2EBNU37x76kchyfkyA',
   );
 
-  /// Carga el ID de personalidad guardado en Firestore
-  Future<String?> _loadPersonalityId() async {
+  /// Carga la configuración guardada en Firestore
+  Future<Map<String, dynamic>?> _loadConfig() async {
     try {
       final doc = await FirebaseFirestore.instance
           .collection('configuracion')
           .doc('voz_ia')
           .get();
-      return doc.data()?['personality_id'] as String?;
+      return doc.data();
     } catch (_) {
       return null;
     }
@@ -37,9 +37,16 @@ class AiClient {
     final nombreNegocio = negocio['nombre_negocio'] ?? 'Conección One';
     final nombreAdmin = negocio['administrador'] ?? 'Admin';
 
-    // Cargar personalidad seleccionada
-    final personalityId = await _loadPersonalityId();
+    // Cargar configuración de IA y personalidad
+    final config = await _loadConfig();
+    final personalityId = config?['personality_id'] as String?;
     final personality = AiVoiceCatalog.getPersonalityById(personalityId ?? 'jarvis_clasico');
+
+    // Usar la clave de Gemini configurada o la predeterminada por entorno/default
+    final customGeminiKey = config?['gemini_key'] as String?;
+    final activeKey = (customGeminiKey != null && customGeminiKey.isNotEmpty) 
+        ? customGeminiKey 
+        : _key;
 
     final prompt = '''
 Eres el Asistente de Inteligencia Artificial integrado del sistema de gestión para el taller de servicio técnico "$nombreNegocio" (administrado por "$nombreAdmin").
@@ -98,7 +105,7 @@ PREGUNTA DEL DUEÑO O USUARIO:
     for (final model in _models) {
       try {
         final request = await HttpRequest.request(
-          'https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent?key=$_key',
+          'https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent?key=$activeKey',
           method: 'POST',
           requestHeaders: {'Content-Type': 'application/json'},
           sendData: bodyData,

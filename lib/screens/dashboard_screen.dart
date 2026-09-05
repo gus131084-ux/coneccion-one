@@ -291,29 +291,8 @@ class _DashboardScreenState
 
                 const SizedBox(height: 25),
 
-                // ===== SECCIÓN: Mis Clientes y Detalles =====
-                isLargeScreen
-                    ? Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            flex: 2,
-                            child: _buildMisClientesSection(),
-                          ),
-                          const SizedBox(width: 20),
-                          Expanded(
-                            flex: 1,
-                            child: _buildClientDetailsPanel(),
-                          ),
-                        ],
-                      )
-                    : Column(
-                        children: [
-                          _buildMisClientesSection(),
-                          const SizedBox(height: 20),
-                          _buildClientDetailsPanel(),
-                        ],
-                      ),
+                // ===== SECCIÓN: Mis Clientes =====
+                _buildMisClientesSection(),
 
                 const SizedBox(height: 25),
 
@@ -909,10 +888,7 @@ class _DashboardScreenState
                           onEnter: (_) => setState(() => _hoveredClientId = docs[i].id),
                           onExit: (_) => setState(() => _hoveredClientId = null),
                           child: GestureDetector(
-                            onTap: () => setState(() {
-                              _selectedClientId = docs[i].id;
-                              _selectedClientData = data;
-                            }),
+                            onTap: () => _mostrarFichaCliente(data, docs[i].id),
                             child: AnimatedScale(
                               scale: isSelected || isHovered ? 1.015 : 1,
                               duration: const Duration(milliseconds: 160),
@@ -989,27 +965,36 @@ class _DashboardScreenState
     });
   }
 
-  Widget _buildClientDetailsPanel() {
+  void _mostrarFichaCliente(Map<String, dynamic> client, String id) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 500, maxHeight: 700),
+            child: _buildClientDetailsPanelPopup(client, id),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildClientDetailsPanelPopup(Map<String, dynamic> client, String selectedId) {
     final textColor = _textColor(context);
     final mutedTextColor = _mutedTextColor(context);
-    final selectedId = _selectedClientId;
-    final client = _selectedClientData;
-    if (selectedId == null || client == null) {
-      return _buildClientDetailsCard(
-        Center(child: Text('Seleccioná un cliente para ver su ficha', textAlign: TextAlign.center, style: TextStyle(color: mutedTextColor))),
-      );
-    }
-
     final clientName = client['nombre']?.toString() ?? '';
 
     return StreamBuilder<QuerySnapshot>(
-      // Las reparaciones existentes se vinculan por nombre; las nuevas también
-      // conservan ese campo además de clienteId.
-      stream: FirebaseFirestore.instance.collection('reparaciones').where('cliente', isEqualTo: clientName).snapshots(),
+      stream: FirebaseFirestore.instance
+          .collection('reparaciones')
+          .where('cliente', isEqualTo: clientName)
+          .snapshots(),
       builder: (context, repairSnapshot) {
         final repairs = repairSnapshot.data?.docs ?? [];
         final repairDoc = repairs.isEmpty ? null : repairs.last;
-        final repair = repairDoc == null ? <String, dynamic>{} : repairDoc.data() as Map<String, dynamic>;
+        final repair =
+            repairDoc == null ? <String, dynamic>{} : repairDoc.data() as Map<String, dynamic>;
         return StreamBuilder<QuerySnapshot>(
           stream: FirebaseFirestore.instance.collection('facturas').snapshots(),
           builder: (context, invoiceSnapshot) {
@@ -1017,8 +1002,10 @@ class _DashboardScreenState
               final data = doc.data() as Map<String, dynamic>;
               return (data['nombreCliente'] ?? data['cliente'])?.toString() == clientName;
             }).toList();
-            final total = invoices.fold<double>(0, (sum, doc) => sum + _asDouble((doc.data() as Map<String, dynamic>)['total']));
-            final balance = invoices.fold<double>(0, (sum, doc) => sum + _asDouble((doc.data() as Map<String, dynamic>)['saldoRestante']));
+            final total = invoices.fold<double>(
+                0, (sum, doc) => sum + _asDouble((doc.data() as Map<String, dynamic>)['total']));
+            final balance = invoices.fold<double>(0,
+                (sum, doc) => sum + _asDouble((doc.data() as Map<String, dynamic>)['saldoRestante']));
             final paid = invoices.isNotEmpty && balance <= 0;
             final photos = List<String>.from(repair['phone_photos'] ?? const []);
 
@@ -1027,21 +1014,46 @@ class _DashboardScreenState
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(client['nombre'] ?? 'Sin nombre', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: textColor, fontSize: 18, fontWeight: FontWeight.bold)),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Text(client['nombre'] ?? 'Sin nombre',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                  color: textColor, fontSize: 18, fontWeight: FontWeight.bold)),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close, color: Colors.white54),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                      ],
+                    ),
                     const SizedBox(height: 3),
                     _detailRow('Teléfono', _clientPhones(client)),
                     Divider(height: 18, color: _cardBorderColor(context)),
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                      decoration: BoxDecoration(color: const Color(0xFF3B82F6).withOpacity(0.16), borderRadius: BorderRadius.circular(10), border: Border.all(color: const Color(0xFF3B82F6).withOpacity(0.5))),
-                      child: Text('${repair['marca']?.toString() ?? '-'} · ${repair['modelo']?.toString() ?? repair['equipo']?.toString() ?? '-'}', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.lightBlueAccent, fontWeight: FontWeight.bold)),
+                      decoration: BoxDecoration(
+                          color: const Color(0xFF3B82F6).withOpacity(0.16),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFF3B82F6).withOpacity(0.5))),
+                      child: Text(
+                          '${repair['marca']?.toString() ?? '-'} · ${repair['modelo']?.toString() ?? repair['equipo']?.toString() ?? '-'}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                              color: Colors.lightBlueAccent, fontWeight: FontWeight.bold)),
                     ),
                     const SizedBox(height: 8),
                     _detailRow('Falla', repair['falla'] ?? '-'),
                     if (repairDoc != null)
                       Row(children: [
-                        SizedBox(width: 64, child: Text('Estado:', style: TextStyle(color: mutedTextColor, fontSize: 12))),
+                        SizedBox(
+                            width: 64,
+                            child: Text('Estado:', style: TextStyle(color: mutedTextColor, fontSize: 12))),
                         SizedBox(
                           width: 132,
                           child: DropdownButton<String>(
@@ -1064,12 +1076,14 @@ class _DashboardScreenState
                           ),
                         ),
                       ])
-                    else _detailRow('Estado', '-'),
+                    else
+                      _detailRow('Estado', '-'),
                     Container(
                       width: double.infinity,
                       margin: const EdgeInsets.symmetric(vertical: 8),
                       padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(color: Colors.green.withOpacity(0.13), borderRadius: BorderRadius.circular(10)),
+                      decoration: BoxDecoration(
+                          color: Colors.green.withOpacity(0.13), borderRadius: BorderRadius.circular(10)),
                       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                         Text('TOTAL REPARACIÓN', style: TextStyle(color: mutedTextColor, fontSize: 11)),
                         Text(
@@ -1084,8 +1098,11 @@ class _DashboardScreenState
                       ]),
                     ),
                     _detailRow('Entrega', '\$${_asDouble(repair['entrega']).toStringAsFixed(0)}'),
-                    _detailRow('Saldo', '\$${balance.toStringAsFixed(0)}', color: balance > 0 ? Colors.orangeAccent : Colors.greenAccent),
-                    _detailRow('Pago', paid ? 'Pagado' : invoices.isEmpty ? 'Sin factura' : 'Pendiente', color: paid ? Colors.greenAccent : Colors.orangeAccent),
+                    _detailRow('Saldo', '\$${balance.toStringAsFixed(0)}',
+                        color: balance > 0 ? Colors.orangeAccent : Colors.greenAccent),
+                    _detailRow('Pago',
+                        paid ? 'Pagado' : invoices.isEmpty ? 'Sin factura' : 'Pendiente',
+                        color: paid ? Colors.greenAccent : Colors.orangeAccent),
                     Divider(height: 20, color: _cardBorderColor(context)),
                     _buildSecurityControls(repairDoc, repair, photos),
                   ],
