@@ -338,6 +338,11 @@ class _MainLayoutState extends State<MainLayout> {
                 ),
               ),
               IconButton(
+                tooltip: 'Asistente Inteligente',
+                onPressed: () => assistantNotifier.value = !assistantNotifier.value,
+                icon: const Icon(Icons.smart_toy_outlined, color: Color(0xFF00E5FF)),
+              ),
+              IconButton(
                 tooltip: isDark ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro',
                 onPressed: () => themeNotifier.value = isDark ? ThemeMode.light : ThemeMode.dark,
                 icon: Icon(isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined, color: textColor),
@@ -682,6 +687,11 @@ class _MainLayoutState extends State<MainLayout> {
         },
       ),
       actions: [
+        IconButton(
+          tooltip: 'Asistente Inteligente',
+          onPressed: () => assistantNotifier.value = !assistantNotifier.value,
+          icon: const Icon(Icons.smart_toy_outlined, color: Color(0xFF00E5FF)),
+        ),
         IconButton(
           tooltip: isDark ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro',
           onPressed: () => themeNotifier.value = isDark ? ThemeMode.light : ThemeMode.dark,

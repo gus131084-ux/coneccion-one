@@ -49,7 +49,7 @@ class AiClient {
         : _key;
 
     if (activeKey.isEmpty) {
-      return "Error: No se ha configurado una API Key de Gemini en la sección de Configuración.";
+      throw Exception("No se ha configurado una API Key de Gemini en la sección de Configuración.");
     }
 
     final prompt = '''

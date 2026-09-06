@@ -15,6 +15,9 @@ import '../services/neural_tts_service.dart';
 import '../services/voice_assistant.dart';
 import '../widgets/voice_wave_indicator.dart';
 
+// Notificador para mostrar/ocultar el asistente desde la AppBar
+final ValueNotifier<bool> assistantNotifier = ValueNotifier(false);
+
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
 
@@ -40,7 +43,6 @@ class _DashboardScreenState
   final NeuralTtsService _ttsService = NeuralTtsService();
   final VoiceAssistant _voiceAssistant = VoiceAssistant();
   final TextEditingController _aiQuestionController = TextEditingController();
-  bool _showAiAssistant = false;
   bool _isListening = false;
   bool _isAskingAi = false;
   bool _isSpeaking = false;
@@ -251,16 +253,6 @@ class _DashboardScreenState
                               onTap: _showRepairRanking,
                             ),
                           ),
-                          const SizedBox(width: 15),
-                          Expanded(
-                            child: _buildMiniAcceso(
-                              "Asistente IA",
-                              Icons.smart_toy_outlined,
-                              Colors.cyan,
-                              onTap: () => setState(() => _showAiAssistant = true),
-                              isAssistant: true,
-                            ),
-                          ),
                         ],
                       )
                     : GridView.count(
@@ -275,16 +267,23 @@ class _DashboardScreenState
                           _buildMiniAcceso("Reparaciones", Icons.build_circle_outlined, Colors.orange),
                           _buildMiniAcceso("Ventas", Icons.shopping_cart_outlined, Colors.green),
                           _buildMiniAcceso("Ranking", Icons.leaderboard_outlined, Colors.purple, onTap: _showRepairRanking),
-                          _buildMiniAcceso("Asistente IA", Icons.smart_toy_outlined, Colors.cyan, onTap: () => setState(() => _showAiAssistant = true), isAssistant: true),
                         ],
                       ),
 
                 const SizedBox(height: 25),
 
-                if (_showAiAssistant) ...[
-                  _buildAiAssistantCard(),
-                  const SizedBox(height: 25),
-                ],
+                ValueListenableBuilder<bool>(
+                  valueListenable: assistantNotifier,
+                  builder: (context, show, child) {
+                    if (!show) return const SizedBox.shrink();
+                    return Column(
+                      children: [
+                        _buildAiAssistantCard(),
+                        const SizedBox(height: 25),
+                      ],
+                    );
+                  },
+                ),
 
                 // ===== FINANZAS =====
                 _buildFinanzasInteligentes(),
@@ -481,7 +480,7 @@ class _DashboardScreenState
               ),
               IconButton(
                 tooltip: 'Cerrar asistente',
-                onPressed: () => setState(() => _showAiAssistant = false),
+                onPressed: () => assistantNotifier.value = false,
                 icon: Icon(Icons.close, color: mutedTextColor),
               ),
             ],

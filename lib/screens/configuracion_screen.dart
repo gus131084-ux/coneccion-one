@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb, TargetPlatform;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:glassmorphism/glassmorphism.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -194,14 +195,18 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
 
   Widget _previewLogo() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bool isMobile = !kIsWeb && 
+        (defaultTargetPlatform == TargetPlatform.android || 
+         defaultTargetPlatform == TargetPlatform.iOS);
+
     if (logoBytes != null) {
       return ClipRRect(
         borderRadius: BorderRadius.circular(20),
         child: Image.memory(
           logoBytes!,
-          width: 120,
+          width: isMobile ? null : 120,
           height: 120,
-          fit: BoxFit.cover,
+          fit: isMobile ? BoxFit.contain : BoxFit.cover,
         ),
       );
     }
@@ -499,8 +504,12 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = Theme.of(context).colorScheme.onSurface;
+    final bool isMobile = !kIsWeb && 
+        (defaultTargetPlatform == TargetPlatform.android || 
+         defaultTargetPlatform == TargetPlatform.iOS);
+
     return Padding(
-      padding: const EdgeInsets.all(30),
+      padding: EdgeInsets.all(isMobile ? 15 : 30),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -536,7 +545,7 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
                 ],
               ),
               child: Padding(
-                padding: const EdgeInsets.all(30),
+                padding: EdgeInsets.all(isMobile ? 15 : 30),
                 child: SingleChildScrollView(
                   child: Column(
                     children: [
