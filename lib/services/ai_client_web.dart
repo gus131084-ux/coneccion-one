@@ -29,28 +29,59 @@ class AiClient {
     }
   }
 
+  String _localDataAnalysis(String question, Map<String, dynamic> data) {
+    final q = question.toLowerCase();
+    
+    if (q.contains('cliente') || q.contains('persona') || q.contains('nombre')) {
+      final clientes = data['clientes'] as List? ?? [];
+      if (clientes.isEmpty) return "No tengo clientes registrados en la base de datos local todavía.";
+      
+      // Búsqueda simple por nombre
+      for (var c in clientes) {
+        final nombre = (c['nombre'] ?? '').toString().toLowerCase();
+        if (q.contains(nombre)) {
+          return "He encontrado al cliente ${c['nombre']}. Su teléfono es ${c['telefono'] ?? 'no registrado'}.";
+        }
+      }
+      return "He analizado mis datos y encontré ${clientes.length} clientes, pero ninguno coincide exactamente con su consulta. Por favor, configure su llave de Gemini para un análisis más profundo.";
+    }
+
+    if (q.contains('reparaci') || q.contains('equipo') || q.contains('celular')) {
+      final reps = data['reparaciones'] as List? ?? [];
+      final pendientes = reps.where((r) => r['estado'] != 'Entregado').length;
+      return "Actualmente hay ${reps.length} reparaciones en total, de las cuales $pendientes están pendientes. Configure su API Key para ver detalles específicos de cada equipo.";
+    }
+
+    if (q.contains('ventas') || q.contains('ganancia') || q.contains('dinero') || q.contains('finanzas')) {
+      final ventas = (data['estadisticas']?['ventas_mes'] ?? 0).toString();
+      return "El resumen financiero muestra ventas por $ventas pesos este mes. Para un desglose detallado, por favor ingrese su API Key en Configuración.";
+    }
+
+    return "Lo siento, para responder consultas complejas necesito que configure su API Key de Gemini en la sección de Configuración. Sin embargo, puedo confirmarle que tengo acceso a sus datos locales.";
+  }
+
   Future<String> ask({
     required String question,
     required Map<String, dynamic> dashboard,
   }) async {
-    final negocio = dashboard['negocio'] as Map<String, dynamic>? ?? {};
-    final nombreNegocio = negocio['nombre_negocio'] ?? 'Conección One';
-    final nombreAdmin = negocio['administrador'] ?? 'Admin';
-
-    // Cargar configuración de IA y personalidad
+    // Cargar configuración
     final config = await _loadConfig();
-    final personalityId = config?['personality_id'] as String?;
-    final personality = AiVoiceCatalog.getPersonalityById(personalityId ?? 'jarvis_clasico');
-
-    // Usar la clave de Gemini configurada o la predeterminada por entorno/default
     final customGeminiKey = config?['gemini_key'] as String?;
     final activeKey = (customGeminiKey != null && customGeminiKey.trim().isNotEmpty) 
         ? customGeminiKey.trim() 
         : _key;
 
     if (activeKey.isEmpty) {
-      throw Exception("No se ha configurado una API Key de Gemini en la sección de Configuración.");
+      // MODO FALLBACK LOCAL: Si no hay llave, intentamos responder con datos básicos
+      return _localDataAnalysis(question, dashboard);
     }
+    
+    final negocio = dashboard['negocio'] as Map<String, dynamic>? ?? {};
+    final nombreNegocio = negocio['nombre_negocio'] ?? 'Conección One';
+    final nombreAdmin = negocio['administrador'] ?? 'Admin';
+
+    final personalityId = config?['personality_id'] as String?;
+    final personality = AiVoiceCatalog.getPersonalityById(personalityId ?? 'jarvis_clasico');
 
     final prompt = '''
 Eres el Asistente de Inteligencia Artificial integrado del sistema de gestión para el taller de servicio técnico "$nombreNegocio" (administrado por "$nombreAdmin").

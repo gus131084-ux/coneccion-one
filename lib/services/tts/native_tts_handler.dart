@@ -40,22 +40,30 @@ class NativeTtsHandler {
     try {
       // 1. Obtener todas las voces disponibles
       List<dynamic>? voices = await _flutterTts.getVoices;
-      if (voices == null || voices.isEmpty) return;
+      if (voices == null || voices.isEmpty) {
+        await _flutterTts.setLanguage("es-MX");
+        return;
+      }
 
-      // 2. Filtrar estrictamente por Español Latino (es-MX, es-AR, es-CO, es-CL, etc)
-      // Excluyendo terminantemente es-ES (España)
+      // Excluyendo terminantemente es-ES (España) y variantes europeas
       var latinVoices = voices.where((voice) {
-        final String name = voice['name']?.toString().toLowerCase() ?? '';
-        final String locale = voice['locale']?.toString().toLowerCase() ?? '';
+        final String name = (voice['name'] ?? '').toString().toLowerCase();
+        final String locale = (voice['locale'] ?? '').toString().toLowerCase();
         
-        bool isSpanish = locale.startsWith('es');
-        bool isNotSpain = !locale.contains('es-es') && !name.contains('spain');
-        
-        return isSpanish && isNotSpain;
+        // Bloqueo total de España y variantes de Castilla
+        if (locale.contains('es-es') || 
+            name.contains('spain') || 
+            name.contains('españa') ||
+            name.contains('castellano')) {
+          return false;
+        }
+
+        // Solo permitir español
+        return locale.startsWith('es');
       }).toList();
 
       if (latinVoices.isEmpty) {
-        debugPrint('Advertencia: No se encontraron voces latinas específicas. Usando locale es-MX por defecto.');
+        debugPrint('Advertencia: No se encontraron voces latinas específicas. Usando es-MX.');
         await _flutterTts.setLanguage("es-MX");
         return;
       }
@@ -66,29 +74,34 @@ class NativeTtsHandler {
         return name.contains('neural') || 
                name.contains('natural') || 
                name.contains('premium') || 
-               name.contains('enhanced');
+               name.contains('enhanced') ||
+               name.contains('high_quality');
       }).toList();
 
-      // Si no hay etiquetas de calidad, usamos las latinas encontradas
-      var finalSelection = qualityVoices.isNotEmpty ? qualityVoices : latinVoices;
+      var candidates = qualityVoices.isNotEmpty ? qualityVoices : latinVoices;
 
-      // Intentar seleccionar una voz masculina si es posible para mantener estilo JARVIS
-      var maleVoices = finalSelection.where((voice) {
+      // 4. Intentar seleccionar una voz masculina para JARVIS
+      var maleVoices = candidates.where((voice) {
         final String name = voice['name']?.toString().toLowerCase() ?? '';
-        return name.contains('male') || name.contains('hombre') || name.contains('jorge') || name.contains('juan');
+        return name.contains('male') || name.contains('hombre') || 
+               name.contains('jorge') || name.contains('raul') || 
+               name.contains('pablo') || name.contains('diego');
       }).toList();
 
-      var voiceToSet = maleVoices.isNotEmpty ? maleVoices.first : finalSelection.first;
+      var voiceToSet = maleVoices.isNotEmpty ? maleVoices.first : candidates.first;
 
       await _flutterTts.setVoice({
         "name": voiceToSet["name"],
         "locale": voiceToSet["locale"]
       });
 
-      debugPrint('Voz nativa configurada: ${voiceToSet["name"]} (${voiceToSet["locale"]})');
+      // Asegurar el lenguaje por si acaso
+      await _flutterTts.setLanguage(voiceToSet["locale"]);
+
+      debugPrint('Voz LATINA NATIVA configurada: ${voiceToSet["name"]} (${voiceToSet["locale"]})');
 
     } catch (e) {
-      debugPrint('Error configurando voz latina estricta: $e');
+      debugPrint('Error configurando voz latina: $e');
       await _flutterTts.setLanguage("es-MX");
     }
   }
