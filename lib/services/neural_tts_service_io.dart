@@ -4,6 +4,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:coneccionone/services/tts/elevenlabs_engine.dart';
 import 'package:coneccionone/services/tts/gemini_jarvis_engine.dart';
+import 'package:coneccionone/services/tts/native_tts_handler.dart';
 import 'package:coneccionone/services/tts/openai_engine.dart';
 import 'package:coneccionone/services/tts/tts_engine.dart';
 import 'package:flutter/foundation.dart';
@@ -12,6 +13,7 @@ import 'package:path_provider/path_provider.dart';
 
 class NeuralTtsService {
   final AudioPlayer _audioPlayer = AudioPlayer();
+  final NativeTtsHandler _nativeTts = NativeTtsHandler();
   final List<TtsEngine> _engines = [
     ElevenLabsEngine(),
     OpenAiEngine(),
@@ -109,42 +111,50 @@ class NeuralTtsService {
     throw StateError('No se pudo generar voz en ninguno de los motores configurados.');
   }
 
-  /// Sintetiza y reproduce forzando compatibilidad nativa en Windows
+  /// Sintetiza y reproduce forzando compatibilidad nativa en Windows con fallback a flutter_tts
   Future<void> speak(
     String text, {
     TtsOptions? options,
   }) async {
     try {
       await stop();
-      final result = await synthesize(
-        text: text,
-        options: options,
-      );
+      
+      // Intentar primero con motores neuronales en la nube
+      try {
+        final result = await synthesize(
+          text: text,
+          options: options,
+        );
 
-      final tempDir = await getTemporaryDirectory();
-      // Guardamos en formato wav para asegurar compatibilidad absoluta con el reproductor nativo del sistema en Windows
-      final file = File('${tempDir.path}/jarvis_voice_${DateTime.now().millisecondsSinceEpoch}.wav');
-      await file.writeAsBytes(result.audioBytes, flush: true);
+        final tempDir = await getTemporaryDirectory();
+        final file = File('${tempDir.path}/jarvis_voice_${DateTime.now().millisecondsSinceEpoch}.wav');
+        await file.writeAsBytes(result.audioBytes, flush: true);
 
-      if (Platform.isWindows) {
-        // En Windows usamos PowerShell con MediaPlayer para forzar la salida por el dispositivo predeterminado actual de la PC (Smart TV o Auriculares)
+        if (Platform.isWindows) {
+          _isPlaying = true;
+          final escapedPath = file.path.replaceAll("'", "''");
+          await Process.run('powershell', [
+            '-NoProfile',
+            '-Command',
+            "Add-Type -AssemblyName presentationCore; \$player = New-Object System.Windows.Media.MediaPlayer; \$player.Open([Uri]'$escapedPath'); \$player.Play(); Start-Sleep -Milliseconds 4000; while(\$player.Position -lt \$player.NaturalDuration.TimeSpan){ Start-Sleep -Milliseconds 200 }"
+          ]);
+          _isPlaying = false;
+        } else {
+          await _audioPlayer.stop();
+          await _audioPlayer.setSource(DeviceFileSource(file.path));
+          await _audioPlayer.resume();
+        }
+      } catch (cloudError) {
+        debugPrint('Falla en motores de nube: $cloudError. Usando motor nativo del dispositivo...');
+        
+        // FALLBACK: Usar flutter_tts nativo configurado con reglas estrictas
         _isPlaying = true;
-        final escapedPath = file.path.replaceAll("'", "''");
-        await Process.run('powershell', [
-          '-NoProfile',
-          '-Command',
-          "Add-Type -AssemblyName presentationCore; \$player = New-Object System.Windows.Media.MediaPlayer; \$player.Open([Uri]'$escapedPath'); \$player.Play(); Start-Sleep -Milliseconds 4000; while(\$player.Position -lt \$player.NaturalDuration.TimeSpan){ Start-Sleep -Milliseconds 200 }"
-        ]);
+        await _nativeTts.speak(text, speed: (options?.speed ?? 0.95) / 2.0); // Ajuste escala flutter_tts
         _isPlaying = false;
-      } else {
-        await _audioPlayer.stop();
-        await _audioPlayer.setSource(DeviceFileSource(file.path));
-        await _audioPlayer.resume();
       }
     } catch (e) {
       _isPlaying = false;
-      debugPrint('Error en NeuralTtsService.speak: $e');
-      rethrow;
+      debugPrint('Error crítico en NeuralTtsService.speak: $e');
     }
   }
 
@@ -153,8 +163,8 @@ class NeuralTtsService {
     try {
       _isPlaying = false;
       await _audioPlayer.stop();
+      await _nativeTts.stop();
       if (Platform.isWindows) {
-        // Detenemos cualquier proceso hijo de PowerShell que esté reproduciendo audio
         Process.run('powershell', ['-NoProfile', '-Command', "Get-Process powershell | Where-Object { \$_.MainWindowTitle -eq '' } | Stop-Process -Force -ErrorAction SilentlyContinue"]);
       }
     } catch (_) {}
